@@ -231,7 +231,7 @@ public class SmarthomaticBinding extends
 			}
 		}
 		if (data != null) {
-			SHCMessage shcMessage = new SHCMessage(data);
+			SHCMessage shcMessage = new SHCMessage(data, packet);
 			SHCHeader shcHeader = shcMessage.getHeader();
 
 			logger.debug("BaseStation SenderID:      "

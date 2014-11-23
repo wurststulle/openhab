@@ -1,14 +1,19 @@
 package org.openhab.binding.smarthomatic.internal;
 
-import java.math.BigInteger;
-import java.util.Arrays;
+import java.nio.charset.Charset;
+import java.nio.charset.CharsetEncoder;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.StringTokenizer;
 
+import javax.xml.bind.DatatypeConverter;
+
+import org.openhab.binding.smarthomatic.internal.packetData.IntValue;
 import org.openhab.binding.smarthomatic.internal.packetData.Packet;
+import org.openhab.binding.smarthomatic.internal.packetData.Packet.MessageGroup;
+import org.openhab.binding.smarthomatic.internal.packetData.Packet.MessageGroup.Message;
+import org.openhab.binding.smarthomatic.internal.packetData.UIntValue;
 import org.openhab.core.items.Item;
-import org.openhab.core.library.types.OnOffType;
-import org.openhab.core.library.types.PercentType;
-import org.openhab.core.library.types.StringType;
 import org.openhab.core.types.State;
 import org.openhab.core.types.Type;
 
@@ -30,18 +35,21 @@ public class SHCMessage {
 	private String editedMessage;
 	private SHCHeader header;
 	private Packet packet;
+	public static Charset charset = Charset.forName("UTF-8");
+	public static CharsetEncoder encoder = charset.newEncoder();
 
 	public class SHCHeader {
 		private int SenderID; // =
 								// tokens[0].substring(tokens[0].indexOf("=")+1);
 		private int MessageType; // =
 									// tokens[2].substring(tokens[2].indexOf("=")+1);
-		private int MessageGroupID;// =
+		private long MessageGroupID;// =
 									// tokens[3].substring(tokens[3].indexOf("=")+1);
 		private int MessageID; // =
 								// tokens[4].substring(tokens[4].indexOf("=")+1);
-		private String MessageData; // =
-									// tokens[5].substring(tokens[5].indexOf("=")+1);
+		private byte[] MessageData; // =
+
+		// tokens[5].substring(tokens[5].indexOf("=")+1);
 
 		public int getSenderID() {
 			return SenderID;
@@ -51,7 +59,7 @@ public class SHCMessage {
 			return MessageType;
 		}
 
-		public int getMessageGroupID() {
+		public long getMessageGroupID() {
 			return MessageGroupID;
 		}
 
@@ -59,7 +67,7 @@ public class SHCMessage {
 			return MessageID;
 		}
 
-		public String getMessageData() {
+		public byte[] getMessageData() {
 			return MessageData;
 		}
 
@@ -78,7 +86,9 @@ public class SHCMessage {
 					.indexOf("=") + 1));
 			MessageID = Integer.parseInt(tokens[4].substring(tokens[4]
 					.indexOf("=") + 1));
-			MessageData = tokens[5].substring(tokens[5].indexOf("=") + 1);
+			String msg = tokens[5].substring(tokens[5].indexOf("=") + 1);
+			MessageData = DatatypeConverter.parseHexBinary(msg);
+
 			/*
 			 * logger.debug("BaseStation SenderID:      "+SenderID);
 			 * logger.debug("BaseStation MessageType:   "+MessageType);
@@ -90,9 +100,9 @@ public class SHCMessage {
 	}
 
 	public class SHCData {
-		private int[] intValues;
-		private long[] longValues;
-		private boolean[] boolValues;
+		private List<Integer> intValues = new ArrayList<Integer>();
+		private List<Long> longValues = new ArrayList<Long>();
+		private List<Boolean> boolValues = new ArrayList<Boolean>();
 		private String messageText;
 		private Type openHABType;
 
@@ -107,128 +117,79 @@ public class SHCMessage {
 		}
 
 		public SHCData(SHCHeader header) {
-			String data = header.getMessageData();
+			byte[] data = header.getMessageData();
+			MessageGroup group = null;
+			Message message = null;
 
-			if (header.getMessageGroupID() == GRP_Generic) {
-				// Version MessageID == 1
-				if (header.getMessageID() == 1) {
-					intValues = new int[3];
-					longValues = new long[1];
-					// major
-					intValues[0] = toInt(data, 0, 2, 16);
-					// minor
-					intValues[1] = toInt(data, 2, 4, 16);
-					// patch
-					intValues[2] = toInt(data, 4, 6, 16);
-					// hash
-					longValues[0] = toLong(data, 6, 14, 16);
-
-					messageText = "Version: " + intValues[0] + "."
-							+ intValues[1] + "." + intValues[2];
-
-					openHABType = new StringType(messageText);
-				} else
-				// Battery MessageID == 5
-				if (header.getMessageID() == 5) {
-					intValues = new int[1];
-					// battery status fills only the first (highest) 7 bits
-					// so we have to shift all bits one to the right
-					intValues[0] = toInt(data, 0, 2, 16) >> 1;
-
-					messageText = "Battery " + intValues[0] + "%";
-
-					openHABType = new PercentType(intValues[0]);
+			for (MessageGroup messageGroup : packet.getMessageGroup()) {
+				if (messageGroup.getMessageGroupID() == header
+						.getMessageGroupID()) {
+					group = messageGroup;
+					break;
 				}
-			} else if (header.getMessageGroupID() == GRP_GPIO) {
-				messageText = "GPIO: {";
-				// boolValues are set in both messages
-				boolValues = new boolean[8];
-				String dummy = data.substring(0, 2);
-				int value = Integer.parseInt(dummy);
-				// Test bits and set bool to true, when bit is set
-				for (int i = 0; i < 8; i++) {
-					if ((value & (1 << i)) == (1 << i)) {
-						boolValues[i] = true;
-					} else {
-						boolValues[i] = false;
-					}
-					messageText += Boolean.toString(boolValues[i]);
-					if (i == 7)
-						messageText += "}";
-					else
-						messageText += ",";
+			}
+			for (Message message1 : group.getMessage()) {
+				if (message1.getMessageID() == header.getMessageID()) {
+					message = message1;
+					break;
 				}
-				// Analog Pin MessageID == 2
-				if (header.getMessageID() == 2) {
-					intValues = new int[8];
-
-					dummy = data.substring(2, 13);
-					// BigInteger can hold values with more than 64 bit
-					BigInteger bi = new BigInteger(dummy, 16);
-					BigInteger b;
-					// now this must be tested
-					// i consider, that all values are written from
-					// "left to right". This means, that the highest 11 bits
-					// represent the value of the first ADC. So the lowest 11
-					// bits
-					// represent the last (8) ADC
-					// I HOPE THIS IS TRUE :-)
-					for (int i = 0; i < 8; i++) {
-						// shift i*11 to left, to unset the high bytes
-						b = bi.shiftLeft(i * 11);
-						// now shift (8-i)*11 to the right, on the left side
-						// the value will be filled with 0
-						b = b.shiftRight((8 - i) * 11);
-						// now in b there is only the value of i's ADC
-						intValues[i] = b.intValue();
-
-						// if my understanding of the algorithm is false we
-						// have to do the following statement
-						// intValues[7-i] = b.intValue();
-
-					}
-
-					// prepare the header text
-					messageText += "Values:";
-					for (int i = 0; i < 7; i++)
-						messageText += intValues[i] + ",";
-					messageText += intValues[7];
-
-					// openHABType has to be set later in
-					// openHABStateFromSHCMessage
-				}
-			} else if (header.getMessageGroupID() == GRP_Weather) {
-				// TODO
-			} else if (header.getMessageGroupID() == GRP_Environment) {
-				// TODO
-			} else if (header.getMessageGroupID() == GRP_Powerswitch) {
-				// SwitchState MessageID == 1
-				if (header.getMessageID() == 1) {
-					// first 3 byte (24 bits) into int var
-					// and shift right 7 bits, because we only need the first
-					// 17 bits
-					int value = toInt(data, 0, 6, 16) >> 7;
-					boolValues = new boolean[1];
-					intValues = new int[1];
-					// first bit tells state (on or off)
-					boolValues[0] = ((value & 1 << 16) == (1 << 16));
-					// now switch off topmost bit and store value in array
-					intValues[0] = ~(1 << 16) & value;
-
-					messageText = "SwitchState: "
-							+ Boolean.toString(boolValues[0]) + ", Timeout: "
-							+ intValues[0];
-
-					openHABType = boolValues[0] ? OnOffType.ON : OnOffType.OFF;
-				}
-				// SwitchStateExt MessageID == 2
-				else if (header.getMessageID() == 2) {
-
-				}
-			} else if (header.getMessageGroupID() == GRP_Dimmer) {
-				// TODO
 			}
 
+			int startBit = 0;
+			for (Object object : message.getDataValue()) {
+				if (object instanceof UIntValue) {
+					UIntValue value = (UIntValue) object;
+					parseData(data, value.getBits(), startBit, false);
+					startBit += value.getBits();
+				} else if (object instanceof IntValue) {
+					IntValue value = (IntValue) object;
+					parseData(data, value.getBits(), startBit, true);
+					startBit += value.getBits();
+				}
+			}
+
+		}
+
+		private void parseData(byte[] data, long bits, int startBit,
+				boolean signed) {
+			// startyte ist das byte welches das startbit gerade noch enthält
+			int startByte = startBit / 8;
+			// die Anzahl der bytes die betrachtet werden müssen
+			int bitsInNextBytes = (int) (bits - (8 - (startBit % 8)));
+			int numberBytes = (int) 1
+					+ ((bitsInNextBytes % 8) == 0 ? ((bitsInNextBytes / 8))
+							: ((bitsInNextBytes / 8) + 1));
+			int numberBytesInResult = (int) ((bits % 8) == 0 ? ((bits / 8))
+					: ((bits / 8) + 1));
+			byte[] res = new byte[numberBytesInResult];
+			int shiftRight = (int) ((bits + startBit) % 8);
+			int diffDataRes = numberBytes - numberBytesInResult;
+			for (int i = numberBytesInResult; i > 0; --i) {
+				byte dataByte = data[startByte + i - 1 + diffDataRes];
+				res[numberBytesInResult - i] = (byte) ((dataByte & 255) >>> (8 - shiftRight));
+				if ((i - 1 + diffDataRes) > 0) {
+					dataByte = data[startByte + i - 2 + diffDataRes];
+					byte h = (byte) ((dataByte & 255) << (shiftRight));
+					res[numberBytesInResult - i] = (byte) (res[numberBytesInResult
+							- i] | h);
+				}
+			}
+			intValues.add(byteArrayToInt(res, signed));
+		}
+
+		private int byteArrayToInt(byte[] b, boolean signed) {
+			int value = 0;
+			for (int i = 0; i < b.length; i++) {
+				int shift = i * 8;
+				value += (b[i] & 0x000000FF) << shift;
+				if (signed && i == b.length - 1) {
+					int c = (b[i] & 0x00000080);
+					if (c > 0) {
+						value = value * -1;
+					}
+				}
+			}
+			return value;
 		}
 
 		public Type getOpenHABType() {
@@ -236,22 +197,21 @@ public class SHCMessage {
 		}
 
 		public boolean getBooleanValue(int index) {
-			return boolValues[index];
+			return boolValues.get(index);
 		}
 
 		public int getIntValue(int index) {
-			return intValues[index];
+			return intValues.get(index);
 		}
 
 		public long getLongValue(int index) {
-			return longValues[index];
+			return longValues.get(index);
 		}
 
 		@Override
 		public String toString() {
-			return "SHCData [intValues=" + Arrays.toString(intValues)
-					+ ", longValues=" + Arrays.toString(longValues)
-					+ ", boolValues=" + Arrays.toString(boolValues)
+			return "SHCData [intValues=" + intValues + ", longValues="
+					+ longValues + ", boolValues=" + boolValues
 					+ ", messageText=" + messageText + ", openHABType="
 					+ openHABType + "]";
 		}
@@ -275,7 +235,6 @@ public class SHCMessage {
 	}
 
 	public State openHABStateFromSHCMessge(Item object) {
-		// TODO Auto-generated method stub
 		return (State) getData().getOpenHABType();
 	}
 
