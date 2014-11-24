@@ -16,14 +16,14 @@ import org.openhab.core.items.Item;
  * @since 0.1.0
  */
 public interface SmarthomaticBindingProvider extends BindingProvider {
-	
-	public int getDeviceID(String itemName);
-	
-	public int getPort(String itemName);
-	
-	public int getType(String itemName);
-	
-	public int getToggleTime(String itemName);
+
+	public int getMessageGroupId(String itemName);
+
+	public int getMessageId(String itemName);
+
+	public int getDeviceId(String itemName);
+
+	public int getMessagePartId(String itemName);
 
 	public Item getItem(String itemName);
 

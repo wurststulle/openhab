@@ -9,16 +9,16 @@
 package org.openhab.binding.smarthomatic.internal;
 
 import java.util.HashMap;
+import java.util.Map;
 import java.util.StringTokenizer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.openhab.binding.smarthomatic.SmarthomaticBindingProvider;
 import org.openhab.core.binding.BindingConfig;
 import org.openhab.core.items.Item;
-import org.openhab.core.library.items.DimmerItem;
-import org.openhab.core.library.items.SwitchItem;
 import org.openhab.model.item.binding.AbstractGenericBindingProvider;
 import org.openhab.model.item.binding.BindingConfigParseException;
-
 
 /**
  * This class is responsible for parsing the binding configuration.
@@ -26,22 +26,22 @@ import org.openhab.model.item.binding.BindingConfigParseException;
  * @author arohde
  * @since 0.1.0
  */
-public class SmarthomaticGenericBindingProvider extends AbstractGenericBindingProvider implements SmarthomaticBindingProvider {
+public class SmarthomaticGenericBindingProvider extends
+		AbstractGenericBindingProvider implements SmarthomaticBindingProvider {
 
-	// We find the id of an device in this map
+	// We find the id of an deviceId in this map
 	// Therefore this map is static
 	private static HashMap<String, Integer> devices = new HashMap<String, Integer>();
-
+	private static final Pattern CONFIG_PATTERN = Pattern.compile(".\\[(.*)]");
 
 	public static void addDevice(String name, int deviceID) {
 		devices.put(name, deviceID);
 	}
-	
+
 	public static int getDevice(String name) {
 		return devices.get(name);
 	}
 
-	
 	/**
 	 * {@inheritDoc}
 	 */
@@ -50,117 +50,204 @@ public class SmarthomaticGenericBindingProvider extends AbstractGenericBindingPr
 	}
 
 	/**
-	 * @{inheritDoc}
+	 * @{inheritDoc
 	 */
 	@Override
-	public void validateItemType(Item item, String bindingConfig) throws BindingConfigParseException {
-		//if (!(item instanceof SwitchItem || item instanceof DimmerItem)) {
-		//	throw new BindingConfigParseException("item '" + item.getName()
-		//			+ "' is of type '" + item.getClass().getSimpleName()
-		//			+ "', only Switch- and DimmerItems are allowed - please check your *.items configuration");
-		//}
+	public void validateItemType(Item item, String bindingConfig)
+			throws BindingConfigParseException {
+		// if (!(item instanceof SwitchItem || item instanceof DimmerItem)) {
+		// throw new BindingConfigParseException("item '" + item.getName()
+		// + "' is of type '" + item.getClass().getSimpleName()
+		// +
+		// "', only Switch- and DimmerItems are allowed - please check your *.items configuration");
+		// }
 	}
-	
+
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void processBindingConfiguration(String context, Item item, String bindingConfig) throws BindingConfigParseException {
+	public void processBindingConfiguration(String context, Item item,
+			String bindingConfig) throws BindingConfigParseException {
 		super.processBindingConfiguration(context, item, bindingConfig);
+
+		if (bindingConfig.startsWith("<")) {
+			SmarthomaticBindingConfig config = parseIncomingBindingConfig(item,
+					bindingConfig);
+			addBindingConfig(item, config);
+		} else if (bindingConfig.startsWith(">")) {
+			SmarthomaticBindingConfig config = parseOutgoingBindingConfig(item,
+					bindingConfig);
+			addBindingConfig(item, config);
+		} else if (bindingConfig.startsWith("=")) {
+			SmarthomaticBindingConfig config = parseBidirectionalBindingConfig(
+					item, bindingConfig);
+			addBindingConfig(item, config);
+		} else {
+			throw new BindingConfigParseException("Item '" + item.getName()
+					+ "' does not start with <, > or =.");
+		}
+
+		// config.setItemName(item.getName());
+		// config.setItem(item);
+		//
+		// //parse bindingconfig here ...
+		// StringTokenizer confItems = new StringTokenizer(bindingConfig, ",");
+		// while (confItems.hasMoreTokens()) {
+		// String[] token = confItems.nextToken().split("=");
+		// // Strip all whitespaces from token[0]
+		// switch (token[0].replaceAll("\\s", "")) {
+		// case "deviceId": config.setDevice(token[1].replaceAll("\\s", ""));
+		// break;
+		// case "port" : config.setPort(token[1].replaceAll("\\s", ""));
+		// break;
+		// case "type" : config.setType(token[1].replaceAll("\\s", ""));
+		// break;
+		// case "toggleTime" : config.setToggleTime(token[1].replaceAll("\\s",
+		// ""));
+		// break;
+		// }
+		// }
+		//
+		// addBindingConfig(item, config);
+	}
+
+	private SmarthomaticBindingConfig parseBidirectionalBindingConfig(
+			Item item, String bindingConfig) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	private SmarthomaticBindingConfig parseIncomingBindingConfig(Item item,
+			String bindingConfig) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	private SmarthomaticBindingConfig parseOutgoingBindingConfig(Item item,
+			String bindingConfig) throws BindingConfigParseException {
 		SmarthomaticBindingConfig config = new SmarthomaticBindingConfig();
-		
+		Matcher matcher = CONFIG_PATTERN.matcher(bindingConfig);
+
+		if (!matcher.matches())
+			throw new BindingConfigParseException("Config for item '"
+					+ item.getName() + "' could not be parsed.");
+
+		String xbmcInstance = matcher.group(1);
 		config.setItemName(item.getName());
 		config.setItem(item);
-		
-		//parse bindingconfig here ...
+
+		// parse bindingconfig here ...
 		StringTokenizer confItems = new StringTokenizer(bindingConfig, ",");
 		while (confItems.hasMoreTokens()) {
 			String[] token = confItems.nextToken().split("=");
+			String key = token[0];
+			String value = token[1];
+			config.getConfigParams().put(key, value);
 			// Strip all whitespaces from token[0]
-			switch (token[0].replaceAll("\\s", "")) {
-			case "device": config.setDevice(token[1].replaceAll("\\s", ""));
+			key = key.replaceAll("\\s", "");
+			switch (key) {
+			case "deviceId":
+				config.setDeviceId(value.replaceAll("\\s", ""));
 				break;
-			case "port" : config.setPort(token[1].replaceAll("\\s", ""));
+			case "messageGroupId":
+				config.setMessageGroupId(value.replaceAll("\\s", ""));
 				break;
-			case "type" : config.setType(token[1].replaceAll("\\s", ""));
+			case "messageId":
+				config.setMessageId(value.replaceAll("\\s", ""));
 				break;
-			case "toggleTime" : config.setToggleTime(token[1].replaceAll("\\s", ""));
+			case "messagePart":
+				config.setMessagePartId(value.replaceAll("\\s", ""));
 				break;
 			}
+
 		}
-		
-		addBindingConfig(item, config);		
-	}
-	
 
-	@Override
-	public int getDeviceID(String itemName) {
-		SmarthomaticBindingConfig config = (SmarthomaticBindingConfig) bindingConfigs.get(itemName);
-		
-		return config.getDevice();
+		return config;
 	}
 
 	@Override
-	public int getPort(String itemName) {
-		SmarthomaticBindingConfig config = (SmarthomaticBindingConfig) bindingConfigs.get(itemName);
+	public int getDeviceId(String itemName) {
+		SmarthomaticBindingConfig config = (SmarthomaticBindingConfig) bindingConfigs
+				.get(itemName);
 
-		return config.getPort();
+		return config.getDeviceId();
 	}
 
 	@Override
-	public int getType(String itemName) {
-		SmarthomaticBindingConfig config = (SmarthomaticBindingConfig) bindingConfigs.get(itemName);
+	public int getMessageId(String itemName) {
+		SmarthomaticBindingConfig config = (SmarthomaticBindingConfig) bindingConfigs
+				.get(itemName);
 
-		return config.getType();
+		return config.getMessageId();
 	}
 
 	@Override
-	public int getToggleTime(String itemName) {
-		SmarthomaticBindingConfig config = (SmarthomaticBindingConfig) bindingConfigs.get(itemName);
+	public int getMessageGroupId(String itemName) {
+		SmarthomaticBindingConfig config = (SmarthomaticBindingConfig) bindingConfigs
+				.get(itemName);
 
-		return config.getToggleTime();
+		return config.getMessageGroupId();
+	}
+
+	@Override
+	public int getMessagePartId(String itemName) {
+		SmarthomaticBindingConfig config = (SmarthomaticBindingConfig) bindingConfigs
+				.get(itemName);
+
+		return config.getMessagePartId();
 	}
 
 	@Override
 	public Item getItem(String itemName) {
-		SmarthomaticBindingConfig config = (SmarthomaticBindingConfig) bindingConfigs.get(itemName);
+		SmarthomaticBindingConfig config = (SmarthomaticBindingConfig) bindingConfigs
+				.get(itemName);
 
 		return config.getItem();
 	}
 
-	
 	class SmarthomaticBindingConfig implements BindingConfig {
 		// put member fields here which holds the parsed values
+		private Map<String, String> configParams = new HashMap<String, String>();
 		private String itemName;
-		private int device = -1;
-		private int port = 0;
-		private int type = 0;
-		private int toggleTime = 0;
+		private int deviceId = -1;
+		private int messagePart = 0;
+		private int messageGroupId = 0;
+		private int messageId = 0;
 		private Item item;
 
-		public int getDevice() {
-			return device;
+		public Map<String, String> getConfigParams() {
+			return configParams;
 		}
 
-		public void setDevice(String device) {
+		public void setConfigParams(Map<String, String> configParams) {
+			this.configParams = configParams;
+		}
+
+		public int getDeviceId() {
+			return deviceId;
+		}
+
+		public void setDeviceId(String device) {
 			// now there are two possibilities:
-			// 1. we have a number in device => store it directly
+			// 1. we have a number in deviceId => store it directly
 			try {
-				this.device = Integer.parseInt(device);
+				this.deviceId = Integer.parseInt(device);
 			} catch (NumberFormatException e) {
-				this.device = SmarthomaticGenericBindingProvider.getDevice(device);
+				this.deviceId = SmarthomaticGenericBindingProvider
+						.getDevice(device);
 			}
 		}
 
-		public int getToggleTime() {
-			return toggleTime;
+		public int getMessageId() {
+			return messageId;
 		}
 
-		public void setToggleTime(String toggleTime) {
+		public void setMessageId(String toggleTime) {
 			try {
-				this.toggleTime = Integer.parseInt(toggleTime);
+				this.messageId = Integer.parseInt(toggleTime);
 			} catch (NumberFormatException e) {
-				this.toggleTime = 0;
+				this.messageId = 0;
 			}
 		}
 
@@ -172,46 +259,62 @@ public class SmarthomaticGenericBindingProvider extends AbstractGenericBindingPr
 			this.itemName = itemName;
 		}
 
-		public int getPort() {
-			return port;
+		public int getMessagePartId() {
+			return messagePart;
 		}
 
-		public void setPort(String port) {
+		public void setMessagePartId(String port) {
 			try {
-				this.port = Integer.parseInt(port);
+				this.messagePart = Integer.parseInt(port);
 			} catch (NumberFormatException e) {
-				this.port = 0;
+				this.messagePart = 0;
 			}
 		}
-		
+
 		/**
 		 * 
 		 * @return the MessageGroupID of the item
 		 */
-		public int getType() {
-			return this.type;
+		public int getMessageGroupId() {
+			return this.messageGroupId;
 		}
-		
+
 		/**
 		 * 
-		 * @param type is a MessageGroupID - number or a corresponding type like
-		 * Generic, GPIO, Weather, Environment, Powerswitch, Dimmer or Digiboard
-		 * For more information see the smarthomatic homepage
+		 * @param type
+		 *            is a MessageGroupID - number or a corresponding type like
+		 *            Generic, GPIO, Weather, Environment, Powerswitch, Dimmer
+		 *            or Digiboard For more information see the smarthomatic
+		 *            homepage
 		 */
-		public void setType(String type) {
+		public void setMessageGroupId(String type) {
 			try {
-				this.type = Integer.parseInt(type);
+				this.messageGroupId = Integer.parseInt(type);
 			} catch (NumberFormatException e) {
 				switch (type.toUpperCase()) {
-				case "GENERIC" : this.type = 0; break;
-				case "GPIO"  : this.type = 1; break;
-				case "WEATHER" : this.type = 10; break;
-				case "ENVIRONMENT" : this.type = 11; break;
-				case "POWERSWITCH" : this.type = 20; break;
-				case "DIMMER" : this.type = 60; break;
-				case "DIGIBOARD" : this.type = 99; break;
+				case "GENERIC":
+					this.messageGroupId = 0;
+					break;
+				case "GPIO":
+					this.messageGroupId = 1;
+					break;
+				case "WEATHER":
+					this.messageGroupId = 10;
+					break;
+				case "ENVIRONMENT":
+					this.messageGroupId = 11;
+					break;
+				case "POWERSWITCH":
+					this.messageGroupId = 20;
+					break;
+				case "DIMMER":
+					this.messageGroupId = 60;
+					break;
+				case "DIGIBOARD":
+					this.messageGroupId = 99;
+					break;
 				}
-				
+
 			}
 		}
 
@@ -222,7 +325,7 @@ public class SmarthomaticGenericBindingProvider extends AbstractGenericBindingPr
 		public void setItem(Item item) {
 			this.item = item;
 		}
-		
+
 	}
 
 }

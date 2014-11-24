@@ -126,10 +126,13 @@ public class SmarthomaticBinding extends
 		for (SmarthomaticBindingProvider provider : this.providers) {
 			if (provider.providesBindingFor(itemName)) {
 				if (baseStation != null) {
-					baseStation.sendCommand(provider.getDeviceID(itemName),
-							provider.getPort(itemName),
-							provider.getType(itemName),
-							provider.getToggleTime(itemName), command);
+					baseStation.sendCommand(
+							provider.getMessageGroupId(itemName),
+							provider.getMessageId(itemName),
+							// TODO here we need to check!!
+							0, 0, command);
+					// provider.getType(itemName),
+					// provider.getToggleTime(itemName), command);
 				}
 			}
 		}
@@ -255,7 +258,7 @@ public class SmarthomaticBinding extends
 			for (SmarthomaticBindingProvider provider : this.providers) {
 				for (String itemName : provider.getItemNames()) {
 					if (shcHeader.getSenderID() == provider
-							.getDeviceID(itemName)) {
+							.getMessageGroupId(itemName)) {
 						eventPublisher.postUpdate(itemName, shcMessage
 								.openHABStateFromSHCMessge(provider
 										.getItem(itemName)));

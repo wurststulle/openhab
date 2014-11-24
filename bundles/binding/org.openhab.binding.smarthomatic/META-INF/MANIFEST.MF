@@ -31,4 +31,4 @@ Bundle-RequiredExecutionEnvironment: J2SE-1.5
 Service-Component: OSGI-INF/binding.xml, OSGI-INF/genericbindingprovider.xml
 Bundle-ClassPath: .
 Require-Bundle: org.eclipse.equinox.common,
- org.junit
+ org.junit;resolution:=optional
