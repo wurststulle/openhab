@@ -102,16 +102,6 @@ public class SHCMessage {
 	public class SHCData {
 		private List<Type> openHABTypes = new ArrayList<Type>();
 
-		private int toInt(String data, int start, int end, int radix) {
-			String dummy = data.substring(start, end);
-			return Integer.parseInt(dummy, radix);
-		}
-
-		private long toLong(String data, int start, int end, int radix) {
-			String dummy = data.substring(start, end);
-			return Long.parseLong(dummy, radix);
-		}
-
 		public SHCData(SHCHeader header) {
 			byte[] data = header.getMessageData();
 			MessageGroup group = null;
@@ -155,7 +145,12 @@ public class SHCMessage {
 			// startyte ist das byte welches das startbit gerade noch enthält
 			int startByte = startBit / 8;
 			// die Anzahl der bytes die betrachtet werden müssen
-			int bitsInNextBytes = (int) (bits - (8 - (startBit % 8)));
+			int bitsInNextBytes;
+			if (bits < 8) {
+				bitsInNextBytes = 0;
+			} else {
+				bitsInNextBytes = (int) (bits - (8 - (startBit % 8)));
+			}
 			int numberBytes = (int) 1
 					+ ((bitsInNextBytes % 8) == 0 ? ((bitsInNextBytes / 8))
 							: ((bitsInNextBytes / 8) + 1));
