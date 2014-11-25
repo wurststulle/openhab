@@ -29,6 +29,8 @@ import org.openhab.model.item.binding.BindingConfigParseException;
 public class SmarthomaticGenericBindingProvider extends
 		AbstractGenericBindingProvider implements SmarthomaticBindingProvider {
 
+	private static final Pattern TRANSFORMATION_PATTERN = Pattern
+			.compile("(.*):(.*)");
 	// We find the id of an deviceId in this map
 	// Therefore this map is static
 	private static HashMap<String, Integer> devices = new HashMap<String, Integer>();
@@ -88,28 +90,6 @@ public class SmarthomaticGenericBindingProvider extends
 					+ "' does not start with <, > or =.");
 		}
 
-		// config.setItemName(item.getName());
-		// config.setItem(item);
-		//
-		// //parse bindingconfig here ...
-		// StringTokenizer confItems = new StringTokenizer(bindingConfig, ",");
-		// while (confItems.hasMoreTokens()) {
-		// String[] token = confItems.nextToken().split("=");
-		// // Strip all whitespaces from token[0]
-		// switch (token[0].replaceAll("\\s", "")) {
-		// case "deviceId": config.setDevice(token[1].replaceAll("\\s", ""));
-		// break;
-		// case "port" : config.setPort(token[1].replaceAll("\\s", ""));
-		// break;
-		// case "type" : config.setType(token[1].replaceAll("\\s", ""));
-		// break;
-		// case "toggleTime" : config.setToggleTime(token[1].replaceAll("\\s",
-		// ""));
-		// break;
-		// }
-		// }
-		//
-		// addBindingConfig(item, config);
 	}
 
 	private SmarthomaticBindingConfig parseBidirectionalBindingConfig(
@@ -118,13 +98,20 @@ public class SmarthomaticGenericBindingProvider extends
 		return null;
 	}
 
-	private SmarthomaticBindingConfig parseIncomingBindingConfig(Item item,
+	private SmarthomaticBindingConfig parseOutgoingBindingConfig(Item item,
 			String bindingConfig) {
 		// TODO Auto-generated method stub
 		return null;
 	}
 
-	private SmarthomaticBindingConfig parseOutgoingBindingConfig(Item item,
+	private SmarthomaticBindingConfig parseIncomingBindingConfig(Item item,
+			String bindingConfig) throws BindingConfigParseException {
+		SmarthomaticBindingConfig config = parseConfig(item, bindingConfig);
+
+		return config;
+	}
+
+	private SmarthomaticBindingConfig parseConfig(Item item,
 			String bindingConfig) throws BindingConfigParseException {
 		SmarthomaticBindingConfig config = new SmarthomaticBindingConfig();
 		Matcher matcher = CONFIG_PATTERN.matcher(bindingConfig);
@@ -133,9 +120,16 @@ public class SmarthomaticGenericBindingProvider extends
 			throw new BindingConfigParseException("Config for item '"
 					+ item.getName() + "' could not be parsed.");
 
-		String xbmcInstance = matcher.group(1);
+		bindingConfig = matcher.group(1);
 		config.setItemName(item.getName());
 		config.setItem(item);
+
+		matcher = TRANSFORMATION_PATTERN.matcher(bindingConfig);
+		if (matcher.matches()) {
+			bindingConfig = matcher.group(1);
+			String transformation = matcher.group(2);
+			config.getConfigParams().put("transformation", transformation);
+		}
 
 		// parse bindingconfig here ...
 		StringTokenizer confItems = new StringTokenizer(bindingConfig, ",");
@@ -162,7 +156,6 @@ public class SmarthomaticGenericBindingProvider extends
 			}
 
 		}
-
 		return config;
 	}
 
@@ -204,6 +197,14 @@ public class SmarthomaticGenericBindingProvider extends
 				.get(itemName);
 
 		return config.getItem();
+	}
+
+	@Override
+	public String getConfigParam(String itemName, String paramName) {
+		SmarthomaticBindingConfig config = (SmarthomaticBindingConfig) bindingConfigs
+				.get(itemName);
+
+		return config.getConfigParams().get(paramName);
 	}
 
 	class SmarthomaticBindingConfig implements BindingConfig {

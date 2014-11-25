@@ -14,6 +14,8 @@ import java.net.URL;
 import java.util.Dictionary;
 import java.util.Enumeration;
 import java.util.StringTokenizer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
@@ -25,8 +27,13 @@ import org.openhab.binding.smarthomatic.internal.SHCMessage.SHCData;
 import org.openhab.binding.smarthomatic.internal.SHCMessage.SHCHeader;
 import org.openhab.binding.smarthomatic.internal.packetData.Packet;
 import org.openhab.core.binding.AbstractActiveBinding;
+import org.openhab.core.library.types.DecimalType;
+import org.openhab.core.transform.TransformationException;
+import org.openhab.core.transform.TransformationHelper;
+import org.openhab.core.transform.TransformationService;
 import org.openhab.core.types.Command;
 import org.openhab.core.types.State;
+import org.openhab.core.types.Type;
 import org.osgi.framework.Bundle;
 import org.osgi.service.cm.ConfigurationException;
 import org.osgi.service.cm.ManagedService;
@@ -46,6 +53,9 @@ public class SmarthomaticBinding extends
 
 	private static final Logger logger = LoggerFactory
 			.getLogger(SmarthomaticBinding.class);
+	/** RegEx to extract a parse a function String <code>'(.*?)\((.*)\)'</code> */
+	private static final Pattern EXTRACT_FUNCTION_PATTERN = Pattern
+			.compile("(.*?)\\((.*)\\)");
 	private BaseStation baseStation;
 	private String serialPortname;
 	private int serialBaudrate;
@@ -219,6 +229,70 @@ public class SmarthomaticBinding extends
 		}
 	}
 
+	private String processTransformation(String transformation, String response) {
+		String transformedResponse = response;
+		if (transformation == null) {
+			return transformedResponse;
+		}
+		try {
+			String[] parts = splitTransformationConfig(transformation);
+			String transformationType = parts[0];
+			String transformationFunction = parts[1];
+
+			TransformationService transformationService = TransformationHelper
+					.getTransformationService(
+							SmarthomaticActivator.getContext(),
+							transformationType);
+			if (transformationService != null) {
+				transformedResponse = transformationService.transform(
+						transformationFunction, response);
+			} else {
+				transformedResponse = response;
+				logger.warn(
+						"couldn't transform response because transformationService of type '{}' is unavailable",
+						transformationType);
+			}
+		} catch (TransformationException te) {
+			logger.error("transformation throws exception [transformation="
+					+ transformation + ", response=" + response + "]", te);
+
+			// in case of an error we return the response without any
+			// transformation
+			transformedResponse = response;
+		}
+
+		logger.debug("transformed response is '{}'", transformedResponse);
+
+		return transformedResponse;
+	}
+
+	/**
+	 * Splits a transformation configuration string into its two parts - the
+	 * transformation type and the function/pattern to apply.
+	 * 
+	 * @param transformation
+	 *            the string to split
+	 * @return a string array with exactly two entries for the type and the
+	 *         function
+	 */
+	protected String[] splitTransformationConfig(String transformation) {
+		Matcher matcher = EXTRACT_FUNCTION_PATTERN.matcher(transformation);
+
+		if (!matcher.matches()) {
+			throw new IllegalArgumentException(
+					"given transformation function '"
+							+ transformation
+							+ "' does not follow the expected pattern '<function>(<pattern>)'");
+		}
+		matcher.reset();
+
+		matcher.find();
+		String type = matcher.group(1);
+		String pattern = matcher.group(2);
+
+		return new String[] { type, pattern };
+	}
+
 	@Override
 	public void eventOccured(String message) {
 		StringTokenizer strTok = new StringTokenizer(message, "\n");
@@ -258,10 +332,21 @@ public class SmarthomaticBinding extends
 			for (SmarthomaticBindingProvider provider : this.providers) {
 				for (String itemName : provider.getItemNames()) {
 					if (shcHeader.getSenderID() == provider
-							.getMessageGroupId(itemName)) {
-						eventPublisher.postUpdate(itemName, shcMessage
-								.openHABStateFromSHCMessge(provider
-										.getItem(itemName)));
+							.getDeviceId(itemName)
+							&& shcHeader.getMessageGroupID() == provider
+									.getMessageGroupId(itemName)
+							&& shcHeader.getMessageID() == provider
+									.getMessageId(itemName)) {
+						Type type = shcMessage.openHABStateFromSHCMessage(
+								provider.getItem(itemName)).get(
+								provider.getMessagePartId(itemName));
+						String transformed = processTransformation(
+								provider.getConfigParam(itemName,
+										"transformation"), type.toString());
+						if (type instanceof DecimalType) {
+							type = DecimalType.valueOf(transformed);
+						}
+						eventPublisher.postUpdate(itemName, (State) type);
 					}
 				}
 			}

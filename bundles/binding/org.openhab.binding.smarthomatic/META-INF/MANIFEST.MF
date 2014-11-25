@@ -31,4 +31,5 @@ Bundle-RequiredExecutionEnvironment: J2SE-1.5
 Service-Component: OSGI-INF/binding.xml, OSGI-INF/genericbindingprovider.xml
 Bundle-ClassPath: .
 Require-Bundle: org.eclipse.equinox.common,
- org.junit;resolution:=optional
+ org.junit;resolution:=optional,
+ org.openhab.core.transform

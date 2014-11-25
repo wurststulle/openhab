@@ -14,7 +14,7 @@ import org.openhab.binding.smarthomatic.internal.packetData.Packet.MessageGroup;
 import org.openhab.binding.smarthomatic.internal.packetData.Packet.MessageGroup.Message;
 import org.openhab.binding.smarthomatic.internal.packetData.UIntValue;
 import org.openhab.core.items.Item;
-import org.openhab.core.types.State;
+import org.openhab.core.library.types.DecimalType;
 import org.openhab.core.types.Type;
 
 public class SHCMessage {
@@ -100,11 +100,7 @@ public class SHCMessage {
 	}
 
 	public class SHCData {
-		private List<Integer> intValues = new ArrayList<Integer>();
-		private List<Long> longValues = new ArrayList<Long>();
-		private List<Boolean> boolValues = new ArrayList<Boolean>();
-		private String messageText;
-		private Type openHABType;
+		private List<Type> openHABTypes = new ArrayList<Type>();
 
 		private int toInt(String data, int start, int end, int radix) {
 			String dummy = data.substring(start, end);
@@ -139,18 +135,22 @@ public class SHCMessage {
 			for (Object object : message.getDataValue()) {
 				if (object instanceof UIntValue) {
 					UIntValue value = (UIntValue) object;
-					parseData(data, value.getBits(), startBit, false);
+					Integer result = parseData(data, value.getBits(), startBit,
+							false);
+					openHABTypes.add(new DecimalType(result));
 					startBit += value.getBits();
 				} else if (object instanceof IntValue) {
 					IntValue value = (IntValue) object;
-					parseData(data, value.getBits(), startBit, true);
+					Integer result = parseData(data, value.getBits(), startBit,
+							true);
+					openHABTypes.add(new DecimalType(result));
 					startBit += value.getBits();
 				}
 			}
 
 		}
 
-		private void parseData(byte[] data, long bits, int startBit,
+		private Integer parseData(byte[] data, long bits, int startBit,
 				boolean signed) {
 			// startyte ist das byte welches das startbit gerade noch enthält
 			int startByte = startBit / 8;
@@ -174,7 +174,7 @@ public class SHCMessage {
 							- i] | h);
 				}
 			}
-			intValues.add(byteArrayToInt(res, signed));
+			return byteArrayToInt(res, signed);
 		}
 
 		private int byteArrayToInt(byte[] b, boolean signed) {
@@ -192,28 +192,18 @@ public class SHCMessage {
 			return value;
 		}
 
-		public Type getOpenHABType() {
-			return openHABType;
-		}
-
-		public boolean getBooleanValue(int index) {
-			return boolValues.get(index);
-		}
-
-		public int getIntValue(int index) {
-			return intValues.get(index);
-		}
-
-		public long getLongValue(int index) {
-			return longValues.get(index);
+		public List<Type> getOpenHABTypes() {
+			return openHABTypes;
 		}
 
 		@Override
 		public String toString() {
-			return "SHCData [intValues=" + intValues + ", longValues="
-					+ longValues + ", boolValues=" + boolValues
-					+ ", messageText=" + messageText + ", openHABType="
-					+ openHABType + "]";
+			String res = "SHCData [";
+			for (Type type : openHABTypes) {
+				res += type.toString();
+			}
+			res += "]";
+			return res;
 		}
 
 	}
@@ -234,8 +224,7 @@ public class SHCMessage {
 		return new SHCData(header);
 	}
 
-	public State openHABStateFromSHCMessge(Item object) {
-		return (State) getData().getOpenHABType();
+	public List<Type> openHABStateFromSHCMessage(Item object) {
+		return getData().getOpenHABTypes();
 	}
-
 }

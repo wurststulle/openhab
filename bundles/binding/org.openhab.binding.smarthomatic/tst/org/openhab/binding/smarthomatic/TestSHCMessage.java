@@ -1,6 +1,7 @@
 package org.openhab.binding.smarthomatic;
 
 import java.io.File;
+import java.util.List;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.Unmarshaller;
@@ -11,6 +12,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.openhab.binding.smarthomatic.internal.SHCMessage;
 import org.openhab.binding.smarthomatic.internal.packetData.Packet;
+import org.openhab.core.library.types.DecimalType;
+import org.openhab.core.types.Type;
 
 public class TestSHCMessage {
 
@@ -34,10 +37,9 @@ public class TestSHCMessage {
 
 		String message = " Packet Data: SenderID=10;PacketCounter=17531;MessageType=8;MessageGroupID=10;MessageID=2;MessageData=858230000000;Humidity=53.4;Temperature=22.40;";
 		SHCMessage shcMessage = new SHCMessage(message, packet);
-		int intValue1 = shcMessage.getData().getIntValue(0);
-		int intValue2 = shcMessage.getData().getIntValue(1);
-		Assert.assertEquals(534, intValue1);
-		Assert.assertEquals(2240, intValue2);
+		List<Type> values = shcMessage.getData().getOpenHABTypes();
+		Assert.assertEquals(534, ((DecimalType) values.get(0)).intValue());
+		Assert.assertEquals(2240, ((DecimalType) values.get(1)).intValue());
 	}
 
 	/**
@@ -49,10 +51,9 @@ public class TestSHCMessage {
 
 		String message = " Packet Data: SenderID=10;PacketCounter=17531;MessageType=8;MessageGroupID=10;MessageID=2;MessageData=FFE000000000;Humidity=53.4;Temperature=22.40;";
 		SHCMessage shcMessage = new SHCMessage(message, packet);
-		int intValue1 = shcMessage.getData().getIntValue(0);
-		int intValue2 = shcMessage.getData().getIntValue(1);
-		Assert.assertEquals(1023, intValue1);
-		Assert.assertEquals(-32768, intValue2);
+		List<Type> values = shcMessage.getData().getOpenHABTypes();
+		Assert.assertEquals(1023, ((DecimalType) values.get(0)).intValue());
+		Assert.assertEquals(-32768, ((DecimalType) values.get(1)).intValue());
 	}
 
 	/**
@@ -63,10 +64,9 @@ public class TestSHCMessage {
 
 		String message = " Packet Data: SenderID=10;PacketCounter=17531;MessageType=8;MessageGroupID=10;MessageID=2;MessageData=001FFFC00000;Humidity=53.4;Temperature=22.40;";
 		SHCMessage shcMessage = new SHCMessage(message, packet);
-		int intValue1 = shcMessage.getData().getIntValue(0);
-		int intValue2 = shcMessage.getData().getIntValue(1);
-		Assert.assertEquals(0, intValue1);
-		Assert.assertEquals(32767, intValue2);
+		List<Type> values = shcMessage.getData().getOpenHABTypes();
+		Assert.assertEquals(0, ((DecimalType) values.get(0)).intValue());
+		Assert.assertEquals(32767, ((DecimalType) values.get(1)).intValue());
 	}
 
 }

@@ -27,4 +27,6 @@ public interface SmarthomaticBindingProvider extends BindingProvider {
 
 	public Item getItem(String itemName);
 
+	public String getConfigParam(String itemName, String paramName);
+
 }
