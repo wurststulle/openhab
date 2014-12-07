@@ -136,11 +136,9 @@ public class SmarthomaticBinding extends
 		for (SmarthomaticBindingProvider provider : this.providers) {
 			if (provider.providesBindingFor(itemName)) {
 				if (baseStation != null) {
-					baseStation.sendCommand(
+					baseStation.sendCommand(provider.getDeviceId(itemName),
 							provider.getMessageGroupId(itemName),
-							provider.getMessageId(itemName),
-							// TODO here we need to check!!
-							0, 0, command);
+							provider.getMessageId(itemName), 0, command);
 					// provider.getType(itemName),
 					// provider.getToggleTime(itemName), command);
 				}

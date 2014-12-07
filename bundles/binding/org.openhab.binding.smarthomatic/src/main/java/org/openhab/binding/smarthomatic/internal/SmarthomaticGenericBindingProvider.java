@@ -99,9 +99,10 @@ public class SmarthomaticGenericBindingProvider extends
 	}
 
 	private SmarthomaticBindingConfig parseOutgoingBindingConfig(Item item,
-			String bindingConfig) {
-		// TODO Auto-generated method stub
-		return null;
+			String bindingConfig) throws BindingConfigParseException {
+		SmarthomaticBindingConfig config = parseConfig(item, bindingConfig);
+
+		return config;
 	}
 
 	private SmarthomaticBindingConfig parseIncomingBindingConfig(Item item,
