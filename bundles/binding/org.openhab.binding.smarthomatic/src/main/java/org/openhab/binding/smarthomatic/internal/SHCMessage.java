@@ -3,7 +3,9 @@ package org.openhab.binding.smarthomatic.internal;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetEncoder;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.StringTokenizer;
 
 import javax.xml.bind.DatatypeConverter;
@@ -16,8 +18,13 @@ import org.openhab.binding.smarthomatic.internal.packetData.UIntValue;
 import org.openhab.core.items.Item;
 import org.openhab.core.library.types.DecimalType;
 import org.openhab.core.types.Type;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SHCMessage {
+
+	private static final Logger logger = LoggerFactory
+			.getLogger(SHCMessage.class);
 
 	public static final String DATA_FLAG = "Packet Data:";
 	public static final int DATA_FLAG_SIZE = DATA_FLAG.length();
@@ -74,20 +81,29 @@ public class SHCMessage {
 		public SHCHeader(String data) {
 			StringTokenizer dataTok = new StringTokenizer(data, ";");
 			String[] tokens = new String[dataTok.countTokens()];
+			Map<String, String> tokensMap = new HashMap<String, String>();
 			int i = 0;
 			while (dataTok.hasMoreTokens()) {
-				tokens[i++] = dataTok.nextToken();
+				String nextToken = dataTok.nextToken();
+				tokens[i++] = nextToken;
+				String[] split = nextToken.split("=");
+				if (split.length == 2) {
+					tokensMap.put(split[0].trim(), split[1].trim());
+				}
 			}
-			SenderID = Integer.parseInt(tokens[0].substring(tokens[0]
-					.indexOf("=") + 1));
-			MessageType = Integer.parseInt(tokens[2].substring(tokens[2]
-					.indexOf("=") + 1));
-			MessageGroupID = Integer.parseInt(tokens[3].substring(tokens[3]
-					.indexOf("=") + 1));
-			MessageID = Integer.parseInt(tokens[4].substring(tokens[4]
-					.indexOf("=") + 1));
-			String msg = tokens[5].substring(tokens[5].indexOf("=") + 1);
-			MessageData = DatatypeConverter.parseHexBinary(msg);
+			SenderID = Integer.parseInt(tokensMap.get("SenderID"));
+			MessageType = Integer.parseInt(tokensMap.get("MessageType"));
+			if (MessageType == 0 || MessageType == 1 || MessageType == 2
+					|| MessageType == 8 || MessageType == 10) {
+				MessageGroupID = Integer.parseInt(tokensMap
+						.get("MessageGroupID"));
+				MessageID = Integer.parseInt(tokensMap.get("MessageID"));
+			}
+			if (MessageType == 1 || MessageType == 2 || MessageType == 8
+					|| MessageType == 10) {
+				MessageData = DatatypeConverter.parseHexBinary(tokensMap
+						.get("MessageData"));
+			}
 
 			/*
 			 * logger.debug("BaseStation SenderID:      "+SenderID);
@@ -106,35 +122,37 @@ public class SHCMessage {
 			byte[] data = header.getMessageData();
 			MessageGroup group = null;
 			Message message = null;
-
-			for (MessageGroup messageGroup : packet.getMessageGroup()) {
-				if (messageGroup.getMessageGroupID() == header
-						.getMessageGroupID()) {
-					group = messageGroup;
-					break;
+			int messageType = header.getMessageType();
+			if (messageType == 8 || messageType == 10) {
+				for (MessageGroup messageGroup : packet.getMessageGroup()) {
+					if (messageGroup.getMessageGroupID() == header
+							.getMessageGroupID()) {
+						group = messageGroup;
+						break;
+					}
 				}
-			}
-			for (Message message1 : group.getMessage()) {
-				if (message1.getMessageID() == header.getMessageID()) {
-					message = message1;
-					break;
+				for (Message message1 : group.getMessage()) {
+					if (message1.getMessageID() == header.getMessageID()) {
+						message = message1;
+						break;
+					}
 				}
-			}
 
-			int startBit = 0;
-			for (Object object : message.getDataValue()) {
-				if (object instanceof UIntValue) {
-					UIntValue value = (UIntValue) object;
-					Integer result = parseData(data, value.getBits(), startBit,
-							false);
-					openHABTypes.add(new DecimalType(result));
-					startBit += value.getBits();
-				} else if (object instanceof IntValue) {
-					IntValue value = (IntValue) object;
-					Integer result = parseData(data, value.getBits(), startBit,
-							true);
-					openHABTypes.add(new DecimalType(result));
-					startBit += value.getBits();
+				int startBit = 0;
+				for (Object object : message.getDataValue()) {
+					if (object instanceof UIntValue) {
+						UIntValue value = (UIntValue) object;
+						Integer result = parseData(data, value.getBits(),
+								startBit, false);
+						openHABTypes.add(new DecimalType(result));
+						startBit += value.getBits();
+					} else if (object instanceof IntValue) {
+						IntValue value = (IntValue) object;
+						Integer result = parseData(data, value.getBits(),
+								startBit, true);
+						openHABTypes.add(new DecimalType(result));
+						startBit += value.getBits();
+					}
 				}
 			}
 
@@ -142,9 +160,9 @@ public class SHCMessage {
 
 		private Integer parseData(byte[] data, long bits, int startBit,
 				boolean signed) {
-			// startyte ist das byte welches das startbit gerade noch enthält
+			// startyte ist das byte welches das startbit gerade noch enthï¿½lt
 			int startByte = startBit / 8;
-			// die Anzahl der bytes die betrachtet werden müssen
+			// die Anzahl der bytes die betrachtet werden mï¿½ssen
 			int bitsInNextBytes;
 			if (bits < 8) {
 				bitsInNextBytes = 0;

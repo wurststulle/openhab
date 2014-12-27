@@ -2,6 +2,7 @@ package org.openhab.binding.smarthomatic.internal;
 
 import java.util.StringTokenizer;
 
+import org.openhab.core.library.types.DecimalType;
 import org.openhab.core.library.types.HSBType;
 import org.openhab.core.types.Command;
 import org.slf4j.Logger;
@@ -76,10 +77,19 @@ public class BaseStation implements SerialEventWorker {
 			int toggleTime, Command command) {
 		String cmd = "";
 		String messageData = "";
-		if (command instanceof HSBType) {
+		// RGB Dimmer Color Message
+		if (messageGroupId == 60 && messageId == 10
+				&& command instanceof HSBType) {
 			ShcColor translateColor = translateColor((HSBType) command);
 			messageData = translateColor.toString();
-		}
+		} else
+		// Dimmer Brightness Message
+		if (messageGroupId == 60 && messageId == 1
+				&& command instanceof DecimalType) {
+			int brightness = ((DecimalType) command).intValue();
+			brightness = brightness << 1;
+			messageData = Integer.toHexString(brightness);
+		} else
 		// Powerswitch
 		if (messageId == 20) {
 			cmd = "s0002"
@@ -88,7 +98,8 @@ public class BaseStation implements SerialEventWorker {
 					+ "01"
 					+ getToggleTime(toggleTime, command.toString().equals("ON"))
 					+ "\r";
-		} else {
+		}
+		if (!"".equals(messageData)) {
 			cmd = "s0002" + genHexString(deviceID, 4)
 					+ genHexString(messageGroupId, 2)
 					+ genHexString(messageId, 2) + messageData + "\r";
@@ -147,7 +158,7 @@ public class BaseStation implements SerialEventWorker {
 			this.red = red;
 			this.green = green;
 			this.blue = blue;
-			logger.error("red: {}, green: {}, blue: {}", red, green, blue);
+			logger.debug("red: {}, green: {}, blue: {}", red, green, blue);
 		}
 
 		@Override
@@ -155,6 +166,7 @@ public class BaseStation implements SerialEventWorker {
 			// calculating the translation from rgb values to SHC color table
 			int colorNumber = (((red - 1) / 4) * 16) + (((green - 1) / 4) * 4)
 					+ ((blue - 1) / 4);
+			colorNumber = colorNumber << 2;
 			String hexString = Integer.toHexString(colorNumber);
 			while (hexString.length() < 2) {
 				hexString = "0" + hexString;
