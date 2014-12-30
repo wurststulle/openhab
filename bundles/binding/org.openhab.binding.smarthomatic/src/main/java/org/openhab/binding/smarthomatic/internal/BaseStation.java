@@ -133,8 +133,12 @@ public class BaseStation implements SerialEventWorker {
 				i++;
 			}
 		} else {
+			String logResult = message.replaceAll("\n", "\\\\n")
+	                                  .replaceAll("\r", "\\\\r")
+	                                  .substring(0, 40);
+
 			logger.debug("BaseStation eventOccured - giving to Binding "
-					+ message);
+					+ logResult);
 			if (bindingEventWorker != null) {
 				bindingEventWorker.eventOccured(message);
 			}

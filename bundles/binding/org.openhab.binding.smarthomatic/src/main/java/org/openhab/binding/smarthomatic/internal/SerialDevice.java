@@ -149,9 +149,12 @@ public class SerialDevice implements SerialPortEventListener {
 				} while (inputStream.available() > 0);
 				// sent data
 				String result = sb.toString();
+				String logResult = result.replaceAll("\n", "\\\\n")
+						                 .replaceAll("\r", "\\\\r")
+						                 .substring(0, 40);
 
 				// send data to the bus
-				logger.debug("Received message '{}' on serial port {}", new String[] { result, port });
+				logger.debug("Received message '{}'... on serial port {}", new String[] { logResult, port });
 				
 				if (eventWorker != null) {
 					eventWorker.eventOccured(result);
