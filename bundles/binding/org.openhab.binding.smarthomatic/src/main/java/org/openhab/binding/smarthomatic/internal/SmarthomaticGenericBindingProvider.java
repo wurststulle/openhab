@@ -155,6 +155,9 @@ public class SmarthomaticGenericBindingProvider extends
 			case "messagePart":
 				config.setMessagePartId(value.replaceAll("\\s", ""));
 				break;
+			case "messageItem":
+				config.setMessageItemId(value.replaceAll("\\s", ""));
+				break;
 			}
 
 		}
@@ -194,6 +197,14 @@ public class SmarthomaticGenericBindingProvider extends
 	}
 
 	@Override
+	public int getMessageItemId(String itemName) {
+		SmarthomaticBindingConfig config = (SmarthomaticBindingConfig) bindingConfigs
+				.get(itemName);
+
+		return config.getMessagePartId();
+	}
+
+	@Override
 	public Item getItem(String itemName) {
 		SmarthomaticBindingConfig config = (SmarthomaticBindingConfig) bindingConfigs
 				.get(itemName);
@@ -218,6 +229,7 @@ public class SmarthomaticGenericBindingProvider extends
 		private int messageGroupId = 0;
 		private int messageId = 0;
 		private Item item;
+		private int messageItemId = 0;
 
 		public Map<String, String> getConfigParams() {
 			return configParams;
@@ -251,6 +263,18 @@ public class SmarthomaticGenericBindingProvider extends
 				this.messageId = Integer.parseInt(toggleTime);
 			} catch (NumberFormatException e) {
 				this.messageId = 0;
+			}
+		}
+
+		public int getMessageItemId() {
+			return messageItemId;
+		}
+
+		public void setMessageItemId(String toggleTime) {
+			try {
+				this.messageItemId  = Integer.parseInt(toggleTime);
+			} catch (NumberFormatException e) {
+				this.messageItemId = 0;
 			}
 		}
 

@@ -124,6 +124,13 @@ public class BaseStation implements SerialEventWorker {
 
 		// normally there comes only one line to the baseStation
 		// except when station is restarted
+		
+		// Filter out the lines that contain garbage data
+		if (message.contains("(CRC wrong after decryption)")) {
+			logger.debug("BaseStation eventOccured: CRC wrong after decryption");
+			return;
+		}
+		
 		if (message.contains("Base Station")) {
 			StringTokenizer strTok = new StringTokenizer(message, "\n");
 			String data = null;
@@ -137,8 +144,12 @@ public class BaseStation implements SerialEventWorker {
 				i++;
 			}
 		} else {
+			String logResult = message.replaceAll("\n", "\\\\n")
+	                                  .replaceAll("\r", "\\\\r")
+	                                  .substring(0, 40);
+
 			logger.debug("BaseStation eventOccured - giving to Binding "
-					+ message);
+					+ logResult);
 			if (bindingEventWorker != null) {
 				bindingEventWorker.eventOccured(message);
 			}
