@@ -302,24 +302,19 @@ public class SmarthomaticBinding extends
 			String s = strTok.nextToken();
 			if (s.contains(SHCMessage.DATA_FLAG)) {
 				data = s;
-				logger.debug("<BaseStation data>[" + (i - 1) + "]: " + data);
+				logger.debug("<BaseStation data>[" + (i) + "]: " + data);
 			}
 		}
 		if (data != null) {
 			SHCMessage shcMessage = new SHCMessage(data, packet);
 			SHCHeader shcHeader = shcMessage.getHeader();
 
-			logger.debug("BaseStation SenderID:      "
-					+ shcHeader.getSenderID());
-			logger.debug("BaseStation MessageType:   "
-					+ shcHeader.getMessageType());
-			logger.debug("BaseStation MessageGroupID:"
-					+ shcHeader.getMessageGroupID());
-			logger.debug("BaseStation MessageID:     "
-					+ shcHeader.getMessageID());
-			logger.debug("BaseStation MessageData:   "
-					+ shcHeader.getMessageData());
-
+			logger.debug("BaseStation SenderID: " + shcHeader.getSenderID() +
+			             " MsgType: " + shcHeader.getMessageType() +
+			             " MsgGroupID:"	+ shcHeader.getMessageGroupID() +
+			             " MsgID: " + shcHeader.getMessageID() +
+			             " MsgData: " + shcHeader.getMessageData());
+			
 			SHCData info = shcMessage.getData();
 			if (info != null) {
 				logger.debug(info.toString());
