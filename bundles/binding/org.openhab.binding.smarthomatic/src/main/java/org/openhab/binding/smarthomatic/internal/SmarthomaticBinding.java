@@ -180,8 +180,8 @@ public class SmarthomaticBinding extends
 
 			boolean changed = false;
 
-			if (serialPortname != (String) config.get("port")) {
-				serialPortname = (String) config.get("port");
+			if (serialPortname != (String) config.get("serialPort")) {
+				serialPortname = (String) config.get("serialPort");
 				changed = true;
 			}
 			String dummy = (String) config.get("baud");
@@ -309,12 +309,12 @@ public class SmarthomaticBinding extends
 			SHCMessage shcMessage = new SHCMessage(data, packet);
 			SHCHeader shcHeader = shcMessage.getHeader();
 
-			logger.debug("BaseStation SenderID: " + shcHeader.getSenderID() +
-			             " MsgType: " + shcHeader.getMessageType() +
-			             " MsgGroupID:"	+ shcHeader.getMessageGroupID() +
-			             " MsgID: " + shcHeader.getMessageID() +
-			             " MsgData: " + shcHeader.getMessageData());
-			
+			logger.debug("BaseStation SenderID: " + shcHeader.getSenderID()
+					+ " MsgType: " + shcHeader.getMessageType()
+					+ " MsgGroupID:" + shcHeader.getMessageGroupID()
+					+ " MsgID: " + shcHeader.getMessageID() + " MsgData: "
+					+ shcHeader.getMessageData());
+
 			SHCData info = shcMessage.getData();
 			if (info != null) {
 				logger.debug(info.toString());
