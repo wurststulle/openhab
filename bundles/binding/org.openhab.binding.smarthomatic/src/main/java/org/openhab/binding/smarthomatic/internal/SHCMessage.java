@@ -142,49 +142,34 @@ public class SHCMessage {
 
 		private Integer parseData(byte[] data, long bits, int startBit,
 				boolean signed) {
-			// startyte ist das byte welches das startbit gerade noch enthält
-			int startByte = startBit / 8;
-			// die Anzahl der bytes die betrachtet werden müssen
-			int bitsInNextBytes;
-			if (bits < 8) {
-				bitsInNextBytes = 0;
-			} else {
-				bitsInNextBytes = (int) (bits - (8 - (startBit % 8)));
-			}
-			int numberBytes = (int) 1
-					+ ((bitsInNextBytes % 8) == 0 ? ((bitsInNextBytes / 8))
-							: ((bitsInNextBytes / 8) + 1));
-			int numberBytesInResult = (int) ((bits % 8) == 0 ? ((bits / 8))
-					: ((bits / 8) + 1));
-			byte[] res = new byte[numberBytesInResult];
-			int shiftRight = (int) ((bits + startBit) % 8);
-			int diffDataRes = numberBytes - numberBytesInResult;
-			for (int i = numberBytesInResult; i > 0; --i) {
-				byte dataByte = data[startByte + i - 1 + diffDataRes];
-				res[numberBytesInResult - i] = (byte) ((dataByte & 255) >>> (8 - shiftRight));
-				if ((i - 1 + diffDataRes) > 0) {
-					dataByte = data[startByte + i - 2 + diffDataRes];
-					byte h = (byte) ((dataByte & 255) << (shiftRight));
-					res[numberBytesInResult - i] = (byte) (res[numberBytesInResult
-							- i] | h);
-				}
-			}
-			return byteArrayToInt(res, signed);
-		}
-
-		private int byteArrayToInt(byte[] b, boolean signed) {
-			int value = 0;
-			for (int i = 0; i < b.length; i++) {
-				int shift = i * 8;
-				value += (b[i] & 0x000000FF) << shift;
-				if (signed && i == b.length - 1) {
-					int c = (b[i] & 0x00000080);
-					if (c > 0) {
-						value = value * -1;
+			int bits2skip = startBit;
+			long bits2add = bits;
+			int result = 0;
+			// Iterate over bytes and bits
+			for (byte b : data ) {
+				for (int mask = 0x80; mask != 0x00; mask >>= 1) {
+					boolean bitvalue = ( b & mask ) != 0;
+					// no more bits2add, do nothing
+					if (bits2add < 0) {
+					} 
+					// skip until start bit is reached
+					else if (bits2skip > 0) {
+						bits2skip--;
+					}
+					else {
+						if (bitvalue) {
+							result = result + (int)Math.pow(2, bits2add - 1);
+						}
+						bits2add--;
 					}
 				}
 			}
-			return value;
+			if (signed) {
+				if (result >= (int)Math.pow(2, bits - 1)) {
+					result = result - (int)Math.pow(2, bits);
+				}
+			}
+			return result;
 		}
 
 		public List<Type> getOpenHABTypes() {
