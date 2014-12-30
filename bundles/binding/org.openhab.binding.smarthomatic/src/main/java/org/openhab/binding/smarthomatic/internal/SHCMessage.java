@@ -8,6 +8,8 @@ import java.util.StringTokenizer;
 
 import javax.xml.bind.DatatypeConverter;
 
+import org.openhab.binding.smarthomatic.internal.packetData.Array;
+import org.openhab.binding.smarthomatic.internal.packetData.BoolValue;
 import org.openhab.binding.smarthomatic.internal.packetData.IntValue;
 import org.openhab.binding.smarthomatic.internal.packetData.Packet;
 import org.openhab.binding.smarthomatic.internal.packetData.Packet.MessageGroup;
@@ -135,6 +137,27 @@ public class SHCMessage {
 							true);
 					openHABTypes.add(new DecimalType(result));
 					startBit += value.getBits();
+
+				} else if (object instanceof BoolValue) {
+					System.out.print("Yes we have an array");
+
+				} else if (object instanceof Array) {
+					Array value = (Array) object;
+					System.out.print("Yes we have an array");
+					Object object2 = value.getArrayDataValue();
+					for (int i = 0; i < value.getLength(); i++) {
+						System.out.print(i);
+						if (object2 instanceof UIntValue) {
+							System.out.print(" of type UIntvalue");
+						} else if (object2 instanceof IntValue) {
+							System.out.print(" of type Intvalue");
+						} else if (object2 instanceof BoolValue) {
+							System.out.print(" of type BoolValue");
+						} 
+					}
+				
+				} else {
+					System.out.print("Hallo ich bin hier");
 				}
 			}
 
