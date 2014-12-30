@@ -19,6 +19,7 @@ import org.openhab.binding.smarthomatic.internal.packetData.Packet.MessageGroup.
 import org.openhab.binding.smarthomatic.internal.packetData.UIntValue;
 import org.openhab.core.items.Item;
 import org.openhab.core.library.types.DecimalType;
+import org.openhab.core.library.types.OnOffType;
 import org.openhab.core.types.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -141,44 +142,51 @@ public class SHCMessage {
 				}
 
 				int startBit = 0;
-				for (Object object : message.getDataValue()) {
-					if (object instanceof UIntValue) {
-						UIntValue value = (UIntValue) object;
-						Integer result = parseData(data, value.getBits(),
-								startBit, false);
-						openHABTypes.add(new DecimalType(result));
-						startBit += value.getBits();
-					} else if (object instanceof IntValue) {
-						IntValue value = (IntValue) object;
-						Integer result = parseData(data, value.getBits(),
-								startBit, true);
-						openHABTypes.add(new DecimalType(result));
-						startBit += value.getBits();
+				startBit = getDataValues(startBit, message.getDataValue(), data);
+			}
+		}
 
-					} else if (object instanceof BoolValue) {
-						System.out.print("Yes we have an array");
+		private int getDataValues(int startBit, List<Object> dataValues,
+				byte[] data) {
+			for (Object object : dataValues) {
+				if (object instanceof UIntValue) {
+					UIntValue value = (UIntValue) object;
+					Integer result = parseData(data, value.getBits(), startBit,
+							false);
+					openHABTypes.add(new DecimalType(result));
+					startBit += value.getBits();
+				} else if (object instanceof IntValue) {
+					IntValue value = (IntValue) object;
+					Integer result = parseData(data, value.getBits(), startBit,
+							true);
+					openHABTypes.add(new DecimalType(result));
+					startBit += value.getBits();
 
-					} else if (object instanceof Array) {
-						Array value = (Array) object;
-						System.out.print("Yes we have an array");
-						Object object2 = value.getArrayDataValue();
-						for (int i = 0; i < value.getLength(); i++) {
-							System.out.print(i);
-							if (object2 instanceof UIntValue) {
-								System.out.print(" of type UIntvalue");
-							} else if (object2 instanceof IntValue) {
-								System.out.print(" of type Intvalue");
-							} else if (object2 instanceof BoolValue) {
-								System.out.print(" of type BoolValue");
-							}
-						}
-
+				} else if (object instanceof BoolValue) {
+					Integer parseData = parseData(data, 1, startBit, false);
+					if (parseData > 0) {
+						openHABTypes.add(OnOffType.ON);
 					} else {
-						System.out.print("Hallo ich bin hier");
+						openHABTypes.add(OnOffType.OFF);
 					}
+					startBit += 1;
+					System.out.print("Yes we have an array");
+
+				} else if (object instanceof Array) {
+					Array value = (Array) object;
+					System.out.print("Yes we have an array");
+					Object object2 = value.getArrayDataValue();
+					for (int i = 0; i < value.getLength(); i++) {
+						System.out.print(i);
+						startBit = getDataValues(startBit,
+								value.getArrayDataValue(), data);
+					}
+
+				} else {
+					System.out.print("Hallo ich bin hier");
 				}
 			}
-
+			return startBit;
 		}
 
 		private Integer parseData(byte[] data, long bits, int startBit,
